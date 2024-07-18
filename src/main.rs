@@ -1,6 +1,7 @@
 use clap::{Arg, Command};
 use dialoguer::{theme::ColorfulTheme, Select};
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -112,6 +113,17 @@ fn parse_route_name(relative_path: &Path) -> Vec<String> {
         .collect()
 }
 
+fn is_app_router_route(file_name: &OsStr) -> bool {
+    let file_name = file_name.to_str().unwrap();
+
+    file_name.ends_with("page.js")
+        || file_name.ends_with("page.ts")
+        || file_name.ends_with("page.tsx")
+        || file_name.ends_with("route.js")
+        || file_name.ends_with("route.ts")
+        || file_name.ends_with("route.tsx")
+}
+
 fn crawl_app_router(repo_path: &str, root: &mut RouteNode) {
     let app_path = Path::new(repo_path).join("app");
     if !app_path.exists() {
@@ -122,7 +134,7 @@ fn crawl_app_router(repo_path: &str, root: &mut RouteNode) {
     for entry in WalkDir::new(app_path).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             let path = entry.path();
-            if path.file_name().unwrap() == "page.js" || path.file_name().unwrap() == "route.js" {
+            if is_app_router_route(path.file_name().unwrap()) {
                 let relative_path = path.strip_prefix(repo_path).unwrap();
                 let parts: Vec<String> = parse_route_name(relative_path);
                 root.add_route(&parts);
