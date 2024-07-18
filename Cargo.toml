@@ -3,6 +3,10 @@ name = "next-routes"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "next-route-viz"
+path = "src/main.rs"
+
 [dependencies]
 clap = "4.5.9"
 dialoguer = "0.11.0"
