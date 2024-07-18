@@ -48,6 +48,16 @@ impl RouteNode {
             child.print(&new_prefix, children_iter.peek().is_none());
         }
     }
+
+    fn count_leaf_nodes(&self) -> usize {
+        if self.children.is_empty() {
+            return 1;
+        }
+        self.children
+            .values()
+            .map(|child| child.count_leaf_nodes())
+            .sum()
+    }
 }
 
 fn main() {
@@ -84,6 +94,9 @@ fn main() {
     }
 
     root.print("", true);
+
+    let leaf_count = root.count_leaf_nodes();
+    println!("\nYour repo has {} routes.", leaf_count);
 }
 
 fn parse_route_name(relative_path: &Path) -> Vec<String> {
