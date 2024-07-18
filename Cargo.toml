@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 clap = "4.5.9"
+dialoguer = "0.11.0"
 walkdir = "2.5.0"
