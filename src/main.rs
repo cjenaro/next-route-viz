@@ -24,6 +24,11 @@ impl RouteNode {
         }
 
         let first = parts[0].replace(".page", "").replace(".route", "");
+
+        if first.starts_with('_') {
+            return;
+        }
+
         let first = first.split('.').next().unwrap_or(&first).to_string(); // Remove file extension
         let rest = &parts[1..];
 
