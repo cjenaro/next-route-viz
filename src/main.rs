@@ -23,13 +23,14 @@ impl RouteNode {
             return;
         }
 
-        let first = &parts[0];
+        let first = parts[0].replace(".page", "").replace(".route", "");
+        let first = first.split('.').next().unwrap_or(&first).to_string(); // Remove file extension
         let rest = &parts[1..];
 
         let child = self
             .children
             .entry(first.clone())
-            .or_insert_with(|| RouteNode::new(first));
+            .or_insert_with(|| RouteNode::new(&first));
         child.add_route(rest);
     }
 
@@ -85,6 +86,14 @@ fn main() {
     root.print("", true);
 }
 
+fn parse_route_name(relative_path: &Path) -> Vec<String> {
+    relative_path
+        .components()
+        .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
+        .map(|s| s.replace(".page", "").replace(".route", ""))
+        .collect()
+}
+
 fn crawl_app_router(repo_path: &str, root: &mut RouteNode) {
     let app_path = Path::new(repo_path).join("app");
     if !app_path.exists() {
@@ -97,10 +106,7 @@ fn crawl_app_router(repo_path: &str, root: &mut RouteNode) {
             let path = entry.path();
             if path.file_name().unwrap() == "page.js" || path.file_name().unwrap() == "route.js" {
                 let relative_path = path.strip_prefix(repo_path).unwrap();
-                let parts: Vec<String> = relative_path
-                    .components()
-                    .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
-                    .collect();
+                let parts: Vec<String> = parse_route_name(relative_path);
                 root.add_route(&parts);
             }
         }
@@ -120,10 +126,7 @@ fn crawl_pages_router(repo_path: &str, root: &mut RouteNode) {
             if let Some(extension) = path.extension() {
                 if extension == "js" || extension == "tsx" || extension == "jsx" {
                     let relative_path = path.strip_prefix(repo_path).unwrap();
-                    let parts: Vec<String> = relative_path
-                        .components()
-                        .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
-                        .collect();
+                    let parts: Vec<String> = parse_route_name(relative_path);
                     root.add_route(&parts);
                 }
             }
