@@ -1,7 +1,53 @@
 use clap::{Arg, Command};
 use dialoguer::{theme::ColorfulTheme, Select};
+use std::collections::HashMap;
 use std::path::Path;
 use walkdir::WalkDir;
+
+#[derive(Debug)]
+struct RouteNode {
+    name: String,
+    children: HashMap<String, RouteNode>,
+}
+
+impl RouteNode {
+    fn new(name: &str) -> Self {
+        RouteNode {
+            name: name.to_string(),
+            children: HashMap::new(),
+        }
+    }
+
+    fn add_route(&mut self, parts: &[String]) {
+        if parts.is_empty() {
+            return;
+        }
+
+        let first = &parts[0];
+        let rest = &parts[1..];
+
+        let child = self
+            .children
+            .entry(first.clone())
+            .or_insert_with(|| RouteNode::new(first));
+        child.add_route(rest);
+    }
+
+    fn print(&self, prefix: &str, is_last: bool) {
+        println!(
+            "{}{}{}",
+            prefix,
+            if is_last { "└── " } else { "├── " },
+            self.name
+        );
+        let new_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
+
+        let mut children_iter = self.children.values().peekable();
+        while let Some(child) = children_iter.next() {
+            child.print(&new_prefix, children_iter.peek().is_none());
+        }
+    }
+}
 
 fn main() {
     let matches = Command::new("nextjs_crawler")
@@ -11,12 +57,12 @@ fn main() {
             Arg::new("path")
                 .help("Specifies the path to the Next.js repo")
                 .short('p')
-                .long("path")
+                .long("path"),
         )
         .get_matches();
 
-    let default_path = ".".to_string();
-    let repo_path = matches.get_one::<String>("path").unwrap_or(&default_path);
+    let default_path = &".".to_string();
+    let repo_path = matches.get_one::<String>("path").unwrap_or(default_path);
 
     let router_options = vec!["app", "pages"];
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -28,14 +74,18 @@ fn main() {
 
     let router = router_options[selection];
 
+    let mut root = RouteNode::new("root");
+
     match router {
-        "app" => crawl_app_router(repo_path),
-        "pages" => crawl_pages_router(repo_path),
+        "app" => crawl_app_router(repo_path, &mut root),
+        "pages" => crawl_pages_router(repo_path, &mut root),
         _ => eprintln!("Invalid selection. Please choose 'app' or 'pages'."),
     }
+
+    root.print("", true);
 }
 
-fn crawl_app_router(repo_path: &str) {
+fn crawl_app_router(repo_path: &str, root: &mut RouteNode) {
     let app_path = Path::new(repo_path).join("app");
     if !app_path.exists() {
         eprintln!("The 'app' folder was not found in the specified path.");
@@ -46,13 +96,18 @@ fn crawl_app_router(repo_path: &str) {
         if entry.file_type().is_file() {
             let path = entry.path();
             if path.file_name().unwrap() == "page.js" || path.file_name().unwrap() == "route.js" {
-                println!("{}", path.display());
+                let relative_path = path.strip_prefix(repo_path).unwrap();
+                let parts: Vec<String> = relative_path
+                    .components()
+                    .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
+                    .collect();
+                root.add_route(&parts);
             }
         }
     }
 }
 
-fn crawl_pages_router(repo_path: &str) {
+fn crawl_pages_router(repo_path: &str, root: &mut RouteNode) {
     let pages_path = Path::new(repo_path).join("pages");
     if !pages_path.exists() {
         eprintln!("The 'pages' folder was not found in the specified path.");
@@ -64,10 +119,14 @@ fn crawl_pages_router(repo_path: &str) {
             let path = entry.path();
             if let Some(extension) = path.extension() {
                 if extension == "js" || extension == "tsx" || extension == "jsx" {
-                    println!("{}", path.display());
+                    let relative_path = path.strip_prefix(repo_path).unwrap();
+                    let parts: Vec<String> = relative_path
+                        .components()
+                        .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
+                        .collect();
+                    root.add_route(&parts);
                 }
             }
         }
     }
 }
-
